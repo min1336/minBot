@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 
 from app.models.schemas import Emotion, PersonalityConfig

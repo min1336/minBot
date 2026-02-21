@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Groq LLM module for minBot.
 

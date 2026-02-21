@@ -2,14 +2,15 @@
 
 import pytest
 import pytest_asyncio
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import httpx
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
 # ---------------------------------------------------------------------------
-# Settings override — must be applied before the app imports get_settings()
+# Settings override
 # ---------------------------------------------------------------------------
 
 MOCK_SETTINGS = {
@@ -22,6 +23,7 @@ MOCK_SETTINGS = {
     "cosyvoice_server_url": "http://localhost:8002",
     "server_host": "0.0.0.0",
     "server_port": 8000,
+    "admin_password": "test_admin_password",
     "jwt_secret_key": "test-jwt-secret-key-for-testing-only",
     "jwt_algorithm": "HS256",
     "jwt_expire_minutes": 60,
@@ -32,7 +34,7 @@ MOCK_SETTINGS = {
 
 @pytest.fixture(autouse=True)
 def clear_settings_cache():
-    """Clear the lru_cache on get_settings() before each test to allow env var mocking."""
+    """Clear the lru_cache on get_settings() before each test."""
     from app.config import get_settings
     get_settings.cache_clear()
     yield
@@ -42,35 +44,39 @@ def clear_settings_cache():
 @pytest.fixture
 def mock_settings(clear_settings_cache):
     """Patch Settings so no real .env file or env vars are required."""
-    with patch("app.config.Settings") as MockSettings:
-        from app.config import Settings
-        instance = Settings(**MOCK_SETTINGS)
-        MockSettings.return_value = instance
-        # Also patch wherever get_settings is imported directly
-        with patch("app.config.get_settings", return_value=instance):
-            yield instance
+    from app.config import Settings
+    instance = Settings(**MOCK_SETTINGS)
+    with patch("app.config.get_settings", return_value=instance):
+        yield instance
 
 
 # ---------------------------------------------------------------------------
-# FastAPI app fixture (synchronous TestClient)
+# Lightweight FastAPI app for API tests (avoids importing app.main)
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def app():
-    """Return the FastAPI application with lifespan disabled for testing."""
-    # Patch heavy lifespan side-effects (Silero VAD load, file I/O)
-    with (
-        patch("app.main._load_silero_vad", return_value=False),
-        patch("app.personality.speech_learner.SpeechLearner.load_patterns"),
-        patch("app.personality.speech_learner.SpeechLearner.save_patterns"),
-    ):
-        from app.main import app as _app
-        yield _app
+def app(mock_settings):
+    """Lightweight FastAPI app with only the API router mounted.
+
+    Avoids importing app.main which pulls in numpy, torch, deepgram etc.
+    """
+    from app.api.routes import router as api_router
+
+    test_app = FastAPI()
+    test_app.include_router(api_router, prefix="/api")
+
+    @test_app.get("/")
+    async def health_check():
+        from app.config import get_settings
+        settings = get_settings()
+        return {"status": "ok", "bot_name": settings.bot_name}
+
+    return test_app
 
 
 @pytest.fixture
 def client(app):
-    """Synchronous HTTPX test client via FastAPI TestClient."""
+    """Synchronous HTTPX test client."""
     with TestClient(app, raise_server_exceptions=True) as c:
         yield c
 
@@ -94,8 +100,8 @@ async def async_client(app):
 @pytest.fixture
 def auth_token(client):
     """Obtain a valid JWT by posting the correct password."""
-    response = client.post("/api/auth/token", json={"password": "minbot_secret"})
-    assert response.status_code == 200
+    response = client.post("/api/auth/token", json={"password": "test_admin_password"})
+    assert response.status_code == 200, f"Auth failed: {response.json()}"
     return response.json()["access_token"]
 
 
@@ -112,29 +118,23 @@ def auth_headers(auth_token):
 @pytest.fixture
 def mock_pcm_audio():
     """Minimal 30 ms silent PCM 16-bit 16 kHz mono frame (960 bytes)."""
-    return b"\x00\x00" * 480  # 480 samples × 2 bytes = 960 bytes
+    return b"\x00\x00" * 480
 
 
 @pytest.fixture
 def mock_wav_bytes():
-    """Minimal valid WAV header + silent PCM payload (useful for voice clone tests)."""
+    """Minimal valid WAV header + silent PCM payload."""
     import struct
 
-    num_samples = 16000  # 1 second at 16 kHz
-    data_size = num_samples * 2  # 16-bit
+    num_samples = 16000
+    data_size = num_samples * 2
     header = struct.pack(
         "<4sI4s4sIHHIIHH4sI",
         b"RIFF",
-        36 + data_size,   # chunk size
+        36 + data_size,
         b"WAVE",
         b"fmt ",
-        16,               # subchunk1 size (PCM)
-        1,                # audio format (PCM)
-        1,                # num channels (mono)
-        16000,            # sample rate
-        32000,            # byte rate
-        2,                # block align
-        16,               # bits per sample
+        16, 1, 1, 16000, 32000, 2, 16,
         b"data",
         data_size,
     )

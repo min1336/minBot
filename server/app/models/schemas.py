@@ -1,3 +1,5 @@
+from typing import Dict, List, Optional, Union
+
 from pydantic import BaseModel
 from enum import Enum
 
@@ -25,16 +27,16 @@ class WSMessageType(str, Enum):
 
 class WSMessage(BaseModel):
     type: WSMessageType
-    data: str | bytes | dict | None = None
-    emotion: Emotion | None = None
+    data: Optional[Union[str, bytes, Dict]] = None
+    emotion: Optional[Emotion] = None
 
 
 class PersonalityConfig(BaseModel):
     bot_name: str = "미니"
-    speech_patterns: list[str] = []
-    sentence_endings: list[str] = []
-    favorite_expressions: list[str] = []
-    personality_traits: list[str] = ["친근한", "장난스러운", "다정한"]
+    speech_patterns: List[str] = []
+    sentence_endings: List[str] = []
+    favorite_expressions: List[str] = []
+    personality_traits: List[str] = ["친근한", "장난스러운", "다정한"]
 
 
 class VoiceSample(BaseModel):
