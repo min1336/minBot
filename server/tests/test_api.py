@@ -202,3 +202,84 @@ class TestConversationsEndpoint:
         """limit must be between 1 and 100 (FastAPI Query validation)."""
         response = client.get("/api/conversations?limit=0", headers=auth_headers)
         assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# POST /api/voice-provider
+# ---------------------------------------------------------------------------
+
+class TestVoiceProviderEndpoint:
+    def test_switch_to_xtts(self, client, auth_headers):
+        response = client.post(
+            "/api/voice-provider",
+            json={"provider": "xtts"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["provider"] == "xtts"
+        assert response.json()["status"] == "switched"
+
+    def test_switch_to_cosyvoice(self, client, auth_headers):
+        response = client.post(
+            "/api/voice-provider",
+            json={"provider": "cosyvoice"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["provider"] == "cosyvoice"
+
+    def test_switch_to_elevenlabs(self, client, auth_headers):
+        response = client.post(
+            "/api/voice-provider",
+            json={"provider": "elevenlabs"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+
+    def test_invalid_provider_returns_422(self, client, auth_headers):
+        response = client.post(
+            "/api/voice-provider",
+            json={"provider": "invalid_provider"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 422
+
+    def test_missing_provider_field_returns_422(self, client, auth_headers):
+        response = client.post(
+            "/api/voice-provider",
+            json={},
+            headers=auth_headers,
+        )
+        assert response.status_code == 422
+
+    def test_requires_auth(self, client):
+        response = client.post("/api/voice-provider", json={"provider": "xtts"})
+        assert response.status_code in (401, 403)
+
+
+# ---------------------------------------------------------------------------
+# POST /api/voice-samples
+# ---------------------------------------------------------------------------
+
+class TestVoiceSamplesEndpoint:
+    def test_upload_single_file(self, client, auth_headers, mock_wav_bytes):
+        files = [("files", ("sample.wav", mock_wav_bytes, "audio/wav"))]
+        response = client.post("/api/voice-samples", files=files, headers=auth_headers)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["uploaded"] == 1
+        assert data["total_duration"] > 0
+
+    def test_upload_multiple_files(self, client, auth_headers, mock_wav_bytes):
+        files = [
+            ("files", ("sample1.wav", mock_wav_bytes, "audio/wav")),
+            ("files", ("sample2.wav", mock_wav_bytes, "audio/wav")),
+        ]
+        response = client.post("/api/voice-samples", files=files, headers=auth_headers)
+        assert response.status_code == 201
+        assert response.json()["uploaded"] == 2
+
+    def test_requires_auth(self, client, mock_wav_bytes):
+        files = [("files", ("sample.wav", mock_wav_bytes, "audio/wav"))]
+        response = client.post("/api/voice-samples", files=files)
+        assert response.status_code in (401, 403)

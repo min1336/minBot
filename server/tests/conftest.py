@@ -43,10 +43,18 @@ def clear_settings_cache():
 
 @pytest.fixture
 def mock_settings(clear_settings_cache):
-    """Patch Settings so no real .env file or env vars are required."""
+    """Patch Settings so no real .env file or env vars are required.
+
+    Patches get_settings at every import site so the mock is used
+    regardless of ``from app.config import get_settings`` bindings.
+    """
     from app.config import Settings
     instance = Settings(**MOCK_SETTINGS)
-    with patch("app.config.get_settings", return_value=instance):
+    with (
+        patch("app.config.get_settings", return_value=instance),
+        patch("app.api.auth.get_settings", return_value=instance),
+        patch("app.api.routes.get_settings", return_value=instance),
+    ):
         yield instance
 
 
