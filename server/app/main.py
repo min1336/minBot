@@ -68,6 +68,7 @@ _FRAME_BYTES = _FRAME_SAMPLES * 2                    # 16-bit PCM → 2 bytes/sa
 _VAD_THRESHOLD = 0.5         # Silero speech probability threshold
 _SPEECH_HANGOVER_FRAMES = 8  # frames of silence before utterance is declared done
 _MIN_SPEECH_FRAMES = 3       # minimum frames to count as speech (avoids noise blips)
+_MAX_VAD_BUFFER_BYTES = _SAMPLE_RATE * 2 * 5  # 5 seconds of 16kHz 16-bit PCM
 
 
 def _load_silero_vad() -> bool:
@@ -202,7 +203,7 @@ app = FastAPI(title="minBot Server", version="1.0.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -481,7 +482,11 @@ async def websocket_audio(ws: WebSocket):
             if "bytes" in message and message["bytes"] is not None:
                 audio_data: bytes = message["bytes"]
 
-                # Append incoming bytes to the carry-over buffer
+                # Append incoming bytes with overflow protection
+                if len(state.vad_buffer) + len(audio_data) > _MAX_VAD_BUFFER_BYTES:
+                    logger.warning("VAD buffer overflow; dropping audio and resetting")
+                    state.reset_vad()
+                    continue
                 state.vad_buffer += audio_data
 
                 # Consume complete 30 ms frames

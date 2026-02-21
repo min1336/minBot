@@ -26,8 +26,9 @@ class Settings(BaseSettings):
     server_host: str = "0.0.0.0"
     server_port: int = 8000
 
-    # JWT
-    jwt_secret_key: str = "change_this_to_a_random_secret"
+    # Auth
+    admin_password: str = ""  # REQUIRED - set in .env
+    jwt_secret_key: str = ""  # REQUIRED - set in .env
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440
 

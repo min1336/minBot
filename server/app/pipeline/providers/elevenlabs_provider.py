@@ -30,20 +30,18 @@ class ElevenLabsProvider(VoiceCloneProvider):
 
         logger.info("Cloning voice '%s' with %d sample(s) via ElevenLabs IVC", name, len(audio_samples))
 
+        samples_snapshot = list(audio_samples)
+
         def _do_clone() -> str:
             client = self._get_client()
-            files = [
-                ("files", (f"sample_{i}.wav", io.BytesIO(sample), "audio/wav"))
-                for i, sample in enumerate(audio_samples)
-            ]
             voice = client.clone(
                 name=name,
-                files=[io.BytesIO(s) for s in audio_samples],
+                files=[io.BytesIO(s) for s in samples_snapshot],
             )
             return voice.voice_id
 
         try:
-            voice_id = await asyncio.get_event_loop().run_in_executor(None, _do_clone)
+            voice_id = await asyncio.get_running_loop().run_in_executor(None, _do_clone)
             logger.info("Voice cloned successfully: voice_id=%s", voice_id)
             return voice_id
         except Exception as exc:
@@ -67,7 +65,7 @@ class ElevenLabsProvider(VoiceCloneProvider):
             )
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             stream = await loop.run_in_executor(None, _stream_chunks)
             for chunk in stream:
                 if chunk:
@@ -94,7 +92,7 @@ class ElevenLabsProvider(VoiceCloneProvider):
             ]
 
         try:
-            voices = await asyncio.get_event_loop().run_in_executor(None, _list)
+            voices = await asyncio.get_running_loop().run_in_executor(None, _list)
             logger.info("Listed %d ElevenLabs voices", len(voices))
             return voices
         except Exception as exc:
@@ -111,7 +109,7 @@ class ElevenLabsProvider(VoiceCloneProvider):
             return True
 
         try:
-            result = await asyncio.get_event_loop().run_in_executor(None, _delete)
+            result = await asyncio.get_running_loop().run_in_executor(None, _delete)
             logger.info("Deleted ElevenLabs voice: voice_id=%s", voice_id)
             return result
         except Exception as exc:

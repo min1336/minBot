@@ -1,3 +1,4 @@
+import secrets
 import time
 from pathlib import Path
 
@@ -15,6 +16,7 @@ router = APIRouter()
 
 # In-memory state for prototype
 _personality_config = PersonalityConfig()
+_active_voice_provider: str = "elevenlabs"
 _start_time = time.time()
 _conversation_log: list[dict] = []
 
@@ -26,8 +28,14 @@ VALID_PROVIDERS = {"elevenlabs", "xtts", "cosyvoice"}
 
 @router.post("/auth/token")
 async def get_token(body: dict):
-    """Issue JWT for hardcoded prototype password."""
-    if body.get("password") != "minbot_secret":
+    """Issue JWT — password from ADMIN_PASSWORD env var."""
+    settings = get_settings()
+    if not settings.admin_password:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Admin password not configured",
+        )
+    if not secrets.compare_digest(body.get("password", ""), settings.admin_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid password",
@@ -55,7 +63,11 @@ async def upload_voice_samples(
 
     for file in files:
         content = await file.read()
-        dest = save_dir / file.filename
+        # Sanitize filename to prevent path traversal
+        safe_name = Path(file.filename).name if file.filename else f"sample_{uploaded}.wav"
+        dest = save_dir / safe_name
+        if not dest.resolve().is_relative_to(save_dir.resolve()):
+            raise HTTPException(status_code=400, detail="Invalid filename")
         dest.write_bytes(content)
         uploaded += 1
         total_bytes += len(content)
@@ -113,8 +125,8 @@ async def change_voice_provider(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"provider must be one of {sorted(VALID_PROVIDERS)}",
         )
-    settings = get_settings()
-    settings.voice_clone_provider = body.provider
+    global _active_voice_provider
+    _active_voice_provider = body.provider
     return {"provider": body.provider, "status": "switched"}
 
 
