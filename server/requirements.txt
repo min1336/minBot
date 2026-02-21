@@ -1,0 +1,32 @@
+# Core
+fastapi==0.115.0
+uvicorn[standard]==0.30.0
+websockets==13.0
+python-dotenv==1.0.1
+pydantic==2.9.0
+pydantic-settings==2.5.0
+
+# AI Pipeline
+deepgram-sdk==3.7.0
+groq==0.11.0
+elevenlabs==1.9.0
+httpx==0.27.0
+
+# Audio Processing
+opuslib==3.0.1
+silero-vad==5.1
+numpy==1.26.4
+soundfile==0.12.1
+
+# Voice Clone Providers
+TTS==0.22.0  # Coqui XTTS v2
+cosyvoice==0.2.0
+
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Testing
+pytest==8.3.0
+pytest-asyncio==0.24.0
+httpx==0.27.0
