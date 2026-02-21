@@ -55,9 +55,53 @@
 - [x] 아키텍처 확정 (ESP-ADF 파이프라인)
 - [x] 하드웨어 BOM 확정
 - [x] 소프트웨어 아키텍처 확정 (ESP-ADF + FreeRTOS 듀얼코어)
-- [x] AI 파이프라인 확정 (Whisper + Groq Llama 4 + ElevenLabs)
+- [x] AI 파이프라인 확정 (Deepgram Nova-3 + Groq Llama 4 + ElevenLabs)
 - [x] 에러 처리 전략 확정
 - [x] 테스트 전략 확정
 - [x] 설계 문서 작성 완료
-- [ ] 구현 계획 수립
-- [ ] 구현
+- [x] 구현 계획 수립
+- **Phase 1: 서버 (Python FastAPI)** ✅ 완료
+  - [x] Step 1.1: 프로젝트 초기화 (디렉토리, 의존성, config)
+  - [x] Step 1.2: STT 모듈 (Deepgram Nova-3 스트리밍)
+  - [x] Step 1.3: LLM 모듈 (Groq Llama 4 Scout 스트리밍)
+  - [x] Step 1.4: TTS 모듈 (ElevenLabs Flash v2.5 스트리밍)
+  - [x] Step 1.5: Voice Clone 멀티 프로바이더 (ElevenLabs/XTTS/CosyVoice)
+  - [x] Step 1.6: 말투 학습 시스템 (패턴 추출 + 프롬프트 빌더)
+  - [x] Step 1.7: WebSocket 엔드포인트 (전체 파이프라인 연결 + Barge-in)
+  - [x] Step 1.8: REST API (JWT 인증 + 모바일 앱용 엔드포인트)
+  - [x] Step 1.9: 테스트 (8개 테스트 파일)
+  - [x] 보안 코드 리뷰 수정 (CRITICAL 2건 + HIGH 4건)
+- **Phase 2: 펌웨어 (ESP32-S3)** 🔄 진행 중
+  - [ ] Step 2.1-2.9
+- **Phase 3: 모바일 앱 (Flutter)** ⏳ 대기
+- **Phase 4: 통합 + 하드웨어** ⏳ 대기
+
+## 서버 구조 (구현 완료)
+```
+server/
+├── app/
+│   ├── main.py              # FastAPI + WebSocket /audio + 전체 파이프라인
+│   ├── config.py            # pydantic-settings 환경변수 관리
+│   ├── pipeline/
+│   │   ├── stt.py           # Deepgram Nova-3 스트리밍 STT
+│   │   ├── llm.py           # Groq Llama 4 Scout 스트리밍 LLM
+│   │   ├── tts.py           # ElevenLabs Flash v2.5 스트리밍 TTS
+│   │   ├── voice_clone.py   # VoiceCloneProvider 추상 인터페이스
+│   │   └── providers/       # ElevenLabs, XTTS v2, CosyVoice 2
+│   ├── personality/
+│   │   ├── speech_learner.py  # 한국어 말투 패턴 학습
+│   │   └── prompt_builder.py  # 동적 시스템 프롬프트 생성
+│   ├── api/
+│   │   ├── auth.py          # JWT 인증
+│   │   └── routes.py        # REST API 엔드포인트
+│   └── models/schemas.py    # Pydantic 모델
+├── tests/                   # pytest 테스트 스위트
+├── requirements.txt
+└── .env.example
+```
+
+## 주요 기술 결정 사항
+- **Barge-in**: 서버에서 cancel 메시지 전송 → ESP32 스피커 출력 즉시 중단
+- **Voice Clone**: 프로바이더 추상화로 ElevenLabs/XTTS/CosyVoice 교체 가능
+- **VAD**: Silero VAD 우선, 미설치 시 RMS 에너지 기반 폴백
+- **보안**: 환경변수 필수 (admin_password, jwt_secret_key), 파일 업로드 경로 검증
