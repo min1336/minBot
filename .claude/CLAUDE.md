@@ -71,10 +71,23 @@
   - [x] Step 1.8: REST API (JWT 인증 + 모바일 앱용 엔드포인트)
   - [x] Step 1.9: 테스트 (8개 테스트 파일)
   - [x] 보안 코드 리뷰 수정 (CRITICAL 2건 + HIGH 4건)
-- **Phase 2: 펌웨어 (ESP32-S3)** 🔄 진행 중
-  - [ ] Step 2.1-2.9
-- **Phase 3: 모바일 앱 (Flutter)** ⏳ 대기
-- **Phase 4: 통합 + 하드웨어** ⏳ 대기
+- **Phase 2: 펌웨어 (ESP32-S3)** ✅ 완료
+  - [x] Step 2.1: PlatformIO 초기화 (ESP-IDF, PSRAM, OTA 파티션)
+  - [x] Step 2.2: I2S 오디오 (INMP441 마이크 + MAX98357A 스피커)
+  - [x] Step 2.3: 디스플레이 + 이모션 엔진 (GC9A01, LVGL, 9가지 감정)
+  - [x] Step 2.4: 센서 (MPU6050 자이로, 기울기 감지)
+  - [x] Step 2.5: 네트워크 (Wi-Fi + WebSocket + BLE + OTA)
+  - [x] Step 2.6: Wake Word (ESP-SR WakeNet)
+  - [x] Step 2.7: 전원 관리 (배터리 ADC + Light/Deep Sleep)
+  - [x] Step 2.8: OTA 업데이트 (HTTP 버전 체크 + 스트리밍 + 롤백)
+  - [x] Step 2.9: 메인 루프 (FreeRTOS 듀얼코어 FSM)
+- **Phase 3: 모바일 앱 (Flutter)** ✅ 완료
+  - [x] Step 3.1: Flutter 프로젝트 (Material 3, Provider)
+  - [x] Step 3.2: BLE 연결 (스캔, Wi-Fi 프로비저닝)
+  - [x] Step 3.3: 대시보드 (배터리/감정/대화 로그)
+  - [x] Step 3.4: Voice Clone 설정 (녹음/업로드/프로바이더)
+  - [x] Step 3.5: 설정 (서버 URL, 웨이크워드, OTA)
+- **Phase 4: 통합 + 하드웨어** ⏳ 대기 (하드웨어 구매 필요)
 
 ## 서버 구조 (구현 완료)
 ```
@@ -100,8 +113,35 @@ server/
 └── .env.example
 ```
 
+## 펌웨어 구조 (구현 완료)
+```
+firmware/
+├── src/
+│   ├── main.cpp               # FreeRTOS 듀얼코어 FSM + 태스크 생성
+│   ├── config.h               # 전체 핀 정의 + 상수
+│   ├── audio/                 # I2S 마이크/스피커 + Wake Word
+│   ├── display/               # GC9A01 + LVGL + 이모션 FSM + 스프라이트
+│   ├── sensors/               # MPU6050 자이로스코프
+│   ├── network/               # Wi-Fi + WebSocket + BLE + OTA
+│   └── power/                 # 배터리 ADC + 슬립 모드
+├── platformio.ini
+└── partitions_ota.csv
+```
+
+## 모바일 앱 구조 (구현 완료)
+```
+mobile/
+├── lib/
+│   ├── main.dart              # Material 3 앱 + Provider 설정
+│   ├── models/                # RobotStatus, PersonalityConfig
+│   ├── providers/             # BLE, API (JWT), Settings
+│   └── screens/               # Splash, Connect, Dashboard, Voice, Settings
+└── pubspec.yaml
+```
+
 ## 주요 기술 결정 사항
 - **Barge-in**: 서버에서 cancel 메시지 전송 → ESP32 스피커 출력 즉시 중단
 - **Voice Clone**: 프로바이더 추상화로 ElevenLabs/XTTS/CosyVoice 교체 가능
 - **VAD**: Silero VAD 우선, 미설치 시 RMS 에너지 기반 폴백
 - **보안**: 환경변수 필수 (admin_password, jwt_secret_key), 파일 업로드 경로 검증
+- **모바일**: Flutter 크로스플랫폼, BLE 프로비저닝, REST API + JWT 인증
