@@ -146,7 +146,7 @@ class ElevenLabsTTS:
                 self.OUTPUT_FORMAT,
                 len(text),
             )
-            async for chunk in await self._client.text_to_speech.convert(
+            async for chunk in self._client.text_to_speech.convert(
                 voice_id=self._voice_id,
                 text=text,
                 model_id=self.MODEL_ID,

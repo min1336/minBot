@@ -223,16 +223,6 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# Static files (developer dashboard UI)
-# ---------------------------------------------------------------------------
-
-_static_dir = Path(__file__).parent.parent / "static"
-if _static_dir.exists():
-    app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="static")
-    logger.info("Static files mounted from %s", _static_dir)
-
-
-# ---------------------------------------------------------------------------
 # WebSocket helpers
 # ---------------------------------------------------------------------------
 
@@ -319,18 +309,18 @@ async def _run_pipeline(
                         await _set_emotion(ws, state, emotion)
 
                         logger.debug("TTS sentence: %r", clean[:60])
+                        # Send text to client for chat display
+                        await _send_json(ws, {
+                            "type": WSMessageType.STATUS,
+                            "data": f"[EMOTION:{emotion.value}] {clean}" if emotion != Emotion.SPEAKING else clean,
+                        })
                         try:
                             async for audio_chunk in state.tts.synthesize_sentence(clean):
                                 if state.barge_in_event.is_set():
                                     return
                                 await _send_bytes(ws, audio_chunk)
                         except RuntimeError as exc:
-                            logger.error("TTS error: %s", exc)
-                            await _send_json(
-                                ws,
-                                {"type": WSMessageType.STATUS, "data": f"TTS error: {exc}"},
-                            )
-                            return
+                            logger.warning("TTS error (non-fatal, text already sent): %s", exc)
 
                 # Keep only the last (potentially incomplete) sentence in the buffer
                 sentence_buffer = sentences[-1]
@@ -344,13 +334,17 @@ async def _run_pipeline(
                 except ValueError:
                     emotion = Emotion.SPEAKING
                 await _set_emotion(ws, state, emotion)
+                await _send_json(ws, {
+                    "type": WSMessageType.STATUS,
+                    "data": f"[EMOTION:{emotion.value}] {clean}" if emotion != Emotion.SPEAKING else clean,
+                })
                 try:
                     async for audio_chunk in state.tts.synthesize_sentence(clean):
                         if state.barge_in_event.is_set():
                             break
                         await _send_bytes(ws, audio_chunk)
                 except RuntimeError as exc:
-                    logger.error("TTS error (tail): %s", exc)
+                    logger.warning("TTS error (tail, non-fatal): %s", exc)
 
         # Learn from this exchange
         if _speech_learner is not None and full_response_parts:
@@ -561,6 +555,26 @@ async def websocket_audio(ws: WebSocket):
                     await _send_json(ws, {"type": WSMessageType.CANCEL_PLAYBACK})
                     await _set_emotion(ws, state, Emotion.IDLE)
 
+                elif msg_type == WSMessageType.TEXT:
+                    # Text chat — bypass VAD/STT, feed directly into LLM→TTS
+                    text_data = payload.get("data", "").strip()
+                    if text_data:
+                        logger.info("Text input received: %r", text_data[:100])
+
+                        # Cancel any ongoing pipeline
+                        if state.pipeline_task and not state.pipeline_task.done():
+                            state.pipeline_task.cancel()
+                            try:
+                                await state.pipeline_task
+                            except (asyncio.CancelledError, Exception):
+                                pass
+
+                        state.barge_in_event.clear()
+                        state.pipeline_task = asyncio.create_task(
+                            _run_pipeline(ws, state, text_data),
+                            name="pipeline-text",
+                        )
+
                 else:
                     logger.debug("Unknown control message type: %r", msg_type)
 
@@ -585,6 +599,17 @@ async def websocket_audio(ws: WebSocket):
                 pass
 
         logger.info("WebSocket cleanup complete: %s", ws.client)
+
+
+# ---------------------------------------------------------------------------
+# Static files (developer dashboard UI)
+# MUST be registered AFTER WebSocket /audio to avoid path interception.
+# ---------------------------------------------------------------------------
+
+_static_dir = Path(__file__).parent.parent / "static"
+if _static_dir.exists():
+    app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="static")
+    logger.info("Static files mounted from %s", _static_dir)
 
 
 # ---------------------------------------------------------------------------

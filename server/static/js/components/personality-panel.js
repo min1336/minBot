@@ -18,7 +18,7 @@ export function initPersonalityPanel() {
   // Tag input handlers
   document.querySelectorAll('.tag-input').forEach(input => {
     input.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter' || !input.value.trim()) return;
+      if (e.key !== 'Enter' || e.isComposing || !input.value.trim()) return;
       e.preventDefault();
       const targetId = input.dataset.target;
       const container = document.getElementById(targetId);

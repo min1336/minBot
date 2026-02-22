@@ -81,8 +81,8 @@ export function initChatPanel() {
   const textInput = document.getElementById('chat-text-input');
   const history = document.getElementById('chat-history');
 
-  textInput.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' || !textInput.value.trim()) return;
+  textInput.addEventListener('keydown', async (e) => {
+    if (e.key !== 'Enter' || e.isComposing || !textInput.value.trim()) return;
     e.preventDefault();
 
     const text = textInput.value.trim();
@@ -91,15 +91,22 @@ export function initChatPanel() {
     // Add user bubble
     addBubble(text, 'user');
 
-    // Send as text via WebSocket (simulates speech)
+    // Ensure WebSocket is connected before sending
     if (!audioWs.connected) {
       audioWs.connect();
+      // Wait for connection (up to 3s)
+      for (let i = 0; i < 30; i++) {
+        if (audioWs.ws?.readyState === WebSocket.OPEN) break;
+        await new Promise(r => setTimeout(r, 100));
+      }
     }
 
-    // For text mode, we send a JSON message
+    // Send text message via WebSocket
     if (audioWs.ws?.readyState === WebSocket.OPEN) {
       audioWs.ws.send(JSON.stringify({ type: 'text', data: text }));
       face.setEmotion('thinking');
+    } else {
+      addBubble('WebSocket 연결 실패. 다시 시도해주세요.', 'bot');
     }
   });
 
