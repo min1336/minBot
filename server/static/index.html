@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>minBot Developer Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- ================================================================== -->
+  <!-- Login Screen                                                       -->
+  <!-- ================================================================== -->
+  <div id="login-screen" class="screen active">
+    <div class="login-card">
+      <canvas id="login-face" width="120" height="120"></canvas>
+      <h1 class="login-title">minBot</h1>
+      <p class="login-subtitle">Developer Dashboard</p>
+      <form id="login-form" autocomplete="off">
+        <input type="password" id="login-password" placeholder="비밀번호 입력" autofocus>
+        <button type="submit" class="btn btn-primary btn-block">로그인</button>
+      </form>
+      <p id="login-error" class="error-text hidden"></p>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- Main Screen                                                        -->
+  <!-- ================================================================== -->
+  <div id="main-screen" class="screen hidden">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <canvas id="header-face" width="36" height="36"></canvas>
+        <span class="header-title">minBot</span>
+      </div>
+      <nav class="header-tabs">
+        <button class="tab active" data-tab="dashboard">대시보드</button>
+        <button class="tab" data-tab="chat">채팅</button>
+        <button class="tab" data-tab="personality">성격</button>
+        <button class="tab" data-tab="conversations">대화기록</button>
+      </nav>
+      <div class="header-right">
+        <button id="btn-display-modal" class="btn btn-sm btn-outline" title="디지털 디스플레이">디스플레이</button>
+        <button id="btn-voice-modal" class="btn btn-sm btn-outline" title="음성 학습">음성학습</button>
+        <button id="btn-logout" class="btn btn-sm btn-ghost" title="로그아웃">로그아웃</button>
+      </div>
+    </header>
+
+    <!-- Tab Contents -->
+    <main class="main-content">
+      <!-- Dashboard Tab -->
+      <section id="tab-dashboard" class="tab-content active">
+        <div class="card-grid">
+          <div class="card" id="card-battery">
+            <div class="card-label">배터리</div>
+            <div class="card-value">
+              <div class="progress-bar"><div id="battery-bar" class="progress-fill" style="width:100%"></div></div>
+              <span id="battery-text">100%</span>
+            </div>
+          </div>
+          <div class="card" id="card-connection">
+            <div class="card-label">연결 상태</div>
+            <div class="card-value">
+              <span id="connection-dot" class="dot dot-green"></span>
+              <span id="connection-text">연결됨</span>
+              <span id="wifi-rssi" class="text-muted">-50 dBm</span>
+            </div>
+          </div>
+          <div class="card" id="card-emotion">
+            <div class="card-label">현재 감정</div>
+            <div class="card-value">
+              <canvas id="emotion-mini-face" width="48" height="48"></canvas>
+              <span id="emotion-text">idle</span>
+            </div>
+          </div>
+          <div class="card" id="card-uptime">
+            <div class="card-label">가동 시간</div>
+            <div class="card-value"><span id="uptime-text">0h 0m 0s</span></div>
+          </div>
+          <div class="card" id="card-voice-provider">
+            <div class="card-label">음성 프로바이더</div>
+            <div class="card-value">
+              <select id="voice-provider-select">
+                <option value="elevenlabs">ElevenLabs</option>
+                <option value="xtts">XTTS v2</option>
+                <option value="cosyvoice">CosyVoice</option>
+              </select>
+            </div>
+          </div>
+          <div class="card" id="card-pipeline">
+            <div class="card-label">파이프라인</div>
+            <div class="card-value pipeline-status">
+              <span class="pipeline-item"><span class="dot dot-green"></span>STT</span>
+              <span class="pipeline-item"><span class="dot dot-green"></span>LLM</span>
+              <span class="pipeline-item"><span class="dot dot-green"></span>TTS</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Chat Tab -->
+      <section id="tab-chat" class="tab-content hidden">
+        <div class="chat-layout">
+          <div class="chat-sidebar">
+            <canvas id="chat-face" width="120" height="120"></canvas>
+            <div id="chat-latency" class="latency-display">
+              <div class="latency-row"><span>STT</span><span id="latency-stt">— ms</span></div>
+              <div class="latency-row"><span>LLM</span><span id="latency-llm">— ms</span></div>
+              <div class="latency-row"><span>TTS</span><span id="latency-tts">— ms</span></div>
+            </div>
+          </div>
+          <div class="chat-main">
+            <div id="chat-history" class="chat-history"></div>
+            <div class="chat-input-area">
+              <input type="text" id="chat-text-input" placeholder="메시지를 입력하세요...">
+              <button id="btn-mic" class="btn btn-icon" title="마이크 ON/OFF">
+                <span id="mic-icon">MIC</span>
+              </button>
+              <button id="btn-stop" class="btn btn-icon btn-danger" title="중단">STOP</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Personality Tab -->
+      <section id="tab-personality" class="tab-content hidden">
+        <div class="personality-form">
+          <div class="form-group">
+            <label for="personality-name">봇 이름</label>
+            <input type="text" id="personality-name" value="미니">
+          </div>
+          <div class="form-group">
+            <label>성격 특성</label>
+            <div id="tags-personality-traits" class="tag-editor" data-field="personality_traits"></div>
+            <input type="text" class="tag-input" data-target="tags-personality-traits" placeholder="특성 추가 (Enter)">
+          </div>
+          <div class="form-group">
+            <label>말투 패턴</label>
+            <div id="tags-speech-patterns" class="tag-editor" data-field="speech_patterns"></div>
+            <input type="text" class="tag-input" data-target="tags-speech-patterns" placeholder="패턴 추가 (Enter)">
+          </div>
+          <div class="form-group">
+            <label>문장 끝맺음</label>
+            <div id="tags-sentence-endings" class="tag-editor" data-field="sentence_endings"></div>
+            <input type="text" class="tag-input" data-target="tags-sentence-endings" placeholder="끝맺음 추가 (Enter)">
+          </div>
+          <div class="form-group">
+            <label>자주 쓰는 표현</label>
+            <div id="tags-favorite-expressions" class="tag-editor" data-field="favorite_expressions"></div>
+            <input type="text" class="tag-input" data-target="tags-favorite-expressions" placeholder="표현 추가 (Enter)">
+          </div>
+          <div class="form-actions">
+            <button id="btn-save-personality" class="btn btn-primary">저장</button>
+            <button id="btn-reset-personality" class="btn btn-outline">초기화</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Conversations Tab -->
+      <section id="tab-conversations" class="tab-content hidden">
+        <div class="conversations-header">
+          <label for="conv-limit">표시 갯수</label>
+          <select id="conv-limit">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+          </select>
+          <button id="btn-refresh-conv" class="btn btn-sm btn-outline">새로고침</button>
+        </div>
+        <div id="conversations-list" class="conversations-list">
+          <p class="empty-state">아직 대화 기록이 없습니다.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- Display Modal                                                      -->
+  <!-- ================================================================== -->
+  <div id="display-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2>디지털 디스플레이</h2>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body display-modal-body">
+        <div class="display-canvas-wrap">
+          <canvas id="display-face" width="240" height="240"></canvas>
+          <span id="display-fps" class="fps-counter">0 FPS</span>
+        </div>
+        <div class="display-controls">
+          <div class="control-group">
+            <label>감정</label>
+            <div id="emotion-buttons" class="emotion-btn-grid">
+              <button class="emotion-btn active" data-emotion="idle">IDLE</button>
+              <button class="emotion-btn" data-emotion="listening">LISTENING</button>
+              <button class="emotion-btn" data-emotion="thinking">THINKING</button>
+              <button class="emotion-btn" data-emotion="speaking">SPEAKING</button>
+              <button class="emotion-btn" data-emotion="happy">HAPPY</button>
+              <button class="emotion-btn" data-emotion="sad">SAD</button>
+              <button class="emotion-btn" data-emotion="surprised">SURPRISED</button>
+              <button class="emotion-btn" data-emotion="sleeping">SLEEPING</button>
+              <button class="emotion-btn" data-emotion="tilted">TILTED</button>
+            </div>
+          </div>
+          <div class="control-group">
+            <label>오디오 레벨 <span id="audio-level-value">0</span></label>
+            <input type="range" id="audio-level-slider" min="0" max="255" value="0">
+          </div>
+          <div class="control-group">
+            <label>캔버스 크기</label>
+            <div class="btn-group">
+              <button class="btn btn-sm btn-outline" data-size="240">240px</button>
+              <button class="btn btn-sm btn-outline active" data-size="360">360px</button>
+              <button class="btn btn-sm btn-outline" data-size="480">480px</button>
+            </div>
+          </div>
+          <div class="control-group">
+            <label>
+              <input type="checkbox" id="grid-overlay"> 그리드 오버레이
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================== -->
+  <!-- Voice Modal                                                        -->
+  <!-- ================================================================== -->
+  <div id="voice-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>음성 학습</h2>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="voice-steps">
+          <!-- Step 1: Provider -->
+          <div class="voice-step active" data-step="1">
+            <h3>1. 프로바이더 선택</h3>
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="voice-provider" value="elevenlabs" checked> ElevenLabs</label>
+              <label class="radio-label"><input type="radio" name="voice-provider" value="xtts"> XTTS v2</label>
+              <label class="radio-label"><input type="radio" name="voice-provider" value="cosyvoice"> CosyVoice</label>
+            </div>
+          </div>
+          <!-- Step 2: Upload -->
+          <div class="voice-step" data-step="2">
+            <h3>2. 음성 샘플 업로드</h3>
+            <div id="voice-dropzone" class="dropzone">
+              <p>파일을 드래그하거나 클릭하여 업로드</p>
+              <p class="text-muted">WAV 형식 권장</p>
+              <input type="file" id="voice-file-input" accept="audio/*" multiple hidden>
+            </div>
+            <div id="voice-file-list" class="file-list"></div>
+            <button id="btn-upload-voice" class="btn btn-primary" disabled>업로드</button>
+          </div>
+          <!-- Step 3: Test -->
+          <div class="voice-step" data-step="3">
+            <h3>3. 합성 테스트</h3>
+            <input type="text" id="voice-test-text" placeholder="테스트할 텍스트 입력">
+            <button id="btn-test-voice" class="btn btn-outline">합성 테스트 (향후 확장)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

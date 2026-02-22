@@ -21,9 +21,12 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
+from pathlib import Path
+
 import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.models.schemas import Emotion, WSMessageType
@@ -220,13 +223,13 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# REST endpoints
+# Static files (developer dashboard UI)
 # ---------------------------------------------------------------------------
 
-@app.get("/")
-async def health_check():
-    settings = get_settings()
-    return {"status": "ok", "bot_name": settings.bot_name}
+_static_dir = Path(__file__).parent.parent / "static"
+if _static_dir.exists():
+    app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="static")
+    logger.info("Static files mounted from %s", _static_dir)
 
 
 # ---------------------------------------------------------------------------
