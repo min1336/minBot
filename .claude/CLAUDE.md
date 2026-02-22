@@ -3,6 +3,21 @@
 ## 프로젝트 개요
 여자친구에게 선물할 소형 휴대용 애완 로봇. 데스크에 세워두거나 클립/키링으로 가방/옷에 부착 가능.
 
+## Quick Start
+```bash
+# 서버 실행
+cd server && python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env  # API 키 설정 필요
+uvicorn app.main:app --reload  # http://localhost:8000
+
+# 테스트
+cd server && .venv/bin/python -m pytest tests/ -v
+
+# 개발자 대시보드
+# 서버 실행 후 http://localhost:8000 접속 (비밀번호: ADMIN_PASSWORD 환경변수)
+```
+
 ## 확정된 요구사항
 1. 빠른 음성 인식 (STT)
 2. 내 목소리 학습 및 흉내 (Voice Cloning - ElevenLabs Instant Clone)
@@ -87,13 +102,21 @@
   - [x] Step 3.3: 대시보드 (배터리/감정/대화 로그)
   - [x] Step 3.4: Voice Clone 설정 (녹음/업로드/프로바이더)
   - [x] Step 3.5: 설정 (서버 URL, 웨이크워드, OTA)
+- **개발자 대시보드 UI** ✅ 완료
+  - [x] 로그인 (JWT 인증, 얼굴 애니메이션 피드백)
+  - [x] 상태 대시보드 (6카드 그리드, 5초 폴링)
+  - [x] 픽셀아트 얼굴 엔진 (펌웨어 스프라이트 JS 포팅, 9감정, 파티클)
+  - [x] 디스플레이 모달 (감정 전환, 오디오 레벨, 그리드 오버레이)
+  - [x] WebSocket 오디오 (마이크 캡처, MP3 재생, barge-in)
+  - [x] 채팅 패널 (음성+텍스트, 파이프라인 지연 표시)
+  - [x] 성격 설정 (태그 칩 에디터), 대화 기록 뷰어
 - **Phase 4: 통합 + 하드웨어** ⏳ 대기 (하드웨어 구매 필요)
 
 ## 서버 구조 (구현 완료)
 ```
 server/
 ├── app/
-│   ├── main.py              # FastAPI + WebSocket /audio + 전체 파이프라인
+│   ├── main.py              # FastAPI + WebSocket /audio + StaticFiles 마운트
 │   ├── config.py            # pydantic-settings 환경변수 관리
 │   ├── pipeline/
 │   │   ├── stt.py           # Deepgram Nova-3 스트리밍 STT
@@ -108,7 +131,17 @@ server/
 │   │   ├── auth.py          # JWT 인증
 │   │   └── routes.py        # REST API 엔드포인트
 │   └── models/schemas.py    # Pydantic 모델
-├── tests/                   # pytest 테스트 스위트
+├── static/                  # 개발자 대시보드 UI (Vanilla JS SPA)
+│   ├── index.html           # SPA 셸 (로그인 + 탭 라우터 + 모달)
+│   ├── css/style.css        # 다크 테마 (#0a0e1a 기반)
+│   └── js/
+│       ├── app.js           # 탭 라우터, 인증 상태, 모달
+│       ├── api.js           # JWT fetch 래퍼 (401 자동 리다이렉트)
+│       ├── websocket.js     # WebSocket 오디오 (마이크→PCM→WS, MP3 재생)
+│       ├── face-renderer.js # Canvas 픽셀아트 얼굴 (9감정, 파티클)
+│       └── components/      # login, dashboard, chat-panel, display-modal,
+│                            # voice-modal, personality-panel, conversations-panel
+├── tests/                   # pytest 테스트 스위트 (176개)
 ├── requirements.txt
 └── .env.example
 ```

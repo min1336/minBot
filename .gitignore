@@ -31,3 +31,40 @@ firebase-debug.log
 
 # OMC
 .omc/
+
+# img
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.webp
+*.svg
+*.ico
+*.tiff
+*.tif
+*.heic
+*.heif
+*.avif
+*.apng
+*.jfif
+*.pjpeg
+*.pjp
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.webp
+*.svg
+*.ico
+*.tiff
+*.tif
+*.heic
+*.heif
+*.avif
+*.apng
+*.jfif
+*.pjpeg
+*.pjp
+
